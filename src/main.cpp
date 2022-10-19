@@ -3,8 +3,8 @@
 
 // NOTE: if local time fails to init from the NTP call, it's likely that NTP requests are being blocked by your router/ISP.
 
-const char* ssid       = "ParishFiber";
-const char* password   = "ParishNetwork_126";
+const char* ssid       = "YOUR_NETWORK";
+const char* password   = "YOUR_NETWORK_PASSWORD";
 
 const char* ntpServer = "pool.ntp.org";
 const long  mstOffset_sec = -6 * 60 * 60;       // MST timezone
@@ -100,6 +100,8 @@ void updateBedtimeIndicator()
     struct tm timeinfo;
     if(!getLocalTime(&timeinfo)){
         Serial.println("Failed to obtain time");
+        // we can't proceed if we don't have the time stored locally.
+        // restart and try again.
         flashNoLocalTime();
         ESP.restart();
         return;
