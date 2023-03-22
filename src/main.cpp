@@ -7,15 +7,15 @@ const char* ssid       = "YOUR_NETWORK";
 const char* password   = "YOUR_NETWORK_PASSWORD";
 
 const char* ntpServer = "pool.ntp.org";
-const long  mstOffset_sec = -6 * 60 * 60;       // MST timezone
-const int   daylightOffset_sec = 0;
-// const int   daylightOffset_sec = 3600;   // uncomment this when daylight savings begins. Probably.
+const long  mstOffset_sec = -7 * 60 * 60;       // MST timezone
+// const int   daylightOffset_sec = 0;
+const int   daylightOffset_sec = 3600;   // uncomment this when daylight savings begins. Probably.
 
-const int BED_TIME_HOUR = 19;     // 19:00 24h time
-const int BED_TIME_MINUTES = 0;
+const int BED_TIME_HOUR = 18;     // 24h time
+const int BED_TIME_MINUTES = 49;
 const int MORNING_TIME_HOUR = 7;
-const int MORNING_TIME_MINUTE = 30;
-const int NAPTIME_DURATION_MS = 1000 * 60 * 90;     // 90 minute nap
+const int MORNING_TIME_MINUTE = 19;
+const int NAPTIME_DURATION_MS = 1000 * 60 * 60;     // 1h minute nap
 unsigned long naptimeStart = 0;
 bool isNaptime = false;
 
@@ -26,73 +26,76 @@ const int YELLOW_PIN1 = 32;
 const int YELLOW_PIN2 = 5;
 const int BUTTON_PIN = 21;
 
+const int GREEN_BRIGHTNESS = 70;
+const int YELLOW_BRIGHTNESS = 70;
+
 int notConnectedCounter = 0;
 
+const int freq = 5000;
+const int greenLedChannel = 1;
+const int yellowLedChannel = 2;
+const int resolution = 8;
+
 void greenLightsOn(){
-    digitalWrite(YELLOW_PIN1, LOW);
-    digitalWrite(YELLOW_PIN2, LOW);
-    digitalWrite(GREEN_PIN1, HIGH);
-    digitalWrite(GREEN_PIN2, HIGH);
+    ledcWrite(yellowLedChannel, LOW);
+    ledcWrite(greenLedChannel, GREEN_BRIGHTNESS);
 }
 
 void yellowLightsOn(){
-    digitalWrite(GREEN_PIN1, LOW);
-    digitalWrite(GREEN_PIN2, LOW);
-    digitalWrite(YELLOW_PIN1, HIGH);
-    digitalWrite(YELLOW_PIN2, HIGH);
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, YELLOW_BRIGHTNESS);
 }
 
 void flashNoWifi(){
-    digitalWrite(GREEN_PIN2, LOW);
-    digitalWrite(YELLOW_PIN1, LOW);
-    digitalWrite(GREEN_PIN1, HIGH);
-    digitalWrite(YELLOW_PIN2, HIGH);
+    // both off
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, LOW);
+    // green on
+    ledcWrite(greenLedChannel, GREEN_BRIGHTNESS);
     delay(250);
-
-    digitalWrite(GREEN_PIN1, LOW);
-    digitalWrite(YELLOW_PIN2, LOW);
-    digitalWrite(GREEN_PIN2, HIGH);
-    digitalWrite(YELLOW_PIN1, HIGH);
+    // green off, yellow on
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, YELLOW_BRIGHTNESS);
     delay(250);
+    // yellow off, green on
+    ledcWrite(yellowLedChannel, LOW);
+    ledcWrite(greenLedChannel, GREEN_BRIGHTNESS);
+    delay(250);
+    // green off, yellow on
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, YELLOW_BRIGHTNESS);
+    delay(250);
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, LOW);
 }
 
 void flashNoLocalTime(){
-    digitalWrite(GREEN_PIN1, LOW);
-    digitalWrite(YELLOW_PIN1, LOW);
-    digitalWrite(GREEN_PIN2, HIGH);
-    digitalWrite(YELLOW_PIN2, HIGH);
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, LOW);
+
+    ledcWrite(greenLedChannel, GREEN_BRIGHTNESS);
+    ledcWrite(yellowLedChannel, YELLOW_BRIGHTNESS);
     delay(150);
 
-    digitalWrite(GREEN_PIN2, LOW);
-    digitalWrite(YELLOW_PIN2, LOW);
-    digitalWrite(GREEN_PIN1, HIGH);
-    digitalWrite(YELLOW_PIN1, HIGH);
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, LOW);
     delay(150);
 
-    digitalWrite(GREEN_PIN1, LOW);
-    digitalWrite(YELLOW_PIN1, LOW);
-    digitalWrite(GREEN_PIN2, HIGH);
-    digitalWrite(YELLOW_PIN2, HIGH);
+    ledcWrite(greenLedChannel, GREEN_BRIGHTNESS);
+    ledcWrite(yellowLedChannel, YELLOW_BRIGHTNESS);
     delay(150);
 
-    digitalWrite(GREEN_PIN2, LOW);
-    digitalWrite(YELLOW_PIN2, LOW);
-    digitalWrite(GREEN_PIN1, HIGH);
-    digitalWrite(YELLOW_PIN1, HIGH);
+    ledcWrite(greenLedChannel, LOW);
+    ledcWrite(yellowLedChannel, LOW);
     delay(150);
-
-    digitalWrite(GREEN_PIN2, LOW);
-    digitalWrite(YELLOW_PIN2, LOW);
-    digitalWrite(GREEN_PIN1, LOW);
-    digitalWrite(YELLOW_PIN1, LOW);
 }
 
 bool isAfterBedtime(tm timeinfo){
-    return timeinfo.tm_hour * 60 + timeinfo.tm_min > BED_TIME_HOUR * 60 + BED_TIME_MINUTES;
+    return timeinfo.tm_hour * 60 + timeinfo.tm_min >= BED_TIME_HOUR * 60 + BED_TIME_MINUTES;
 }
 
 bool isBeforeWakeTime(tm timeinfo){
-    return timeinfo.tm_hour * 60 + timeinfo.tm_min < MORNING_TIME_HOUR * 60 + MORNING_TIME_MINUTE;
+    return timeinfo.tm_hour * 60 + timeinfo.tm_min <= MORNING_TIME_HOUR * 60 + MORNING_TIME_MINUTE;
 }
 
 void updateBedtimeIndicator()
@@ -118,15 +121,18 @@ void updateBedtimeIndicator()
 
 void setup(){
     Serial.begin(115200);
+
+    ledcSetup(greenLedChannel, freq, resolution);
+    ledcSetup(yellowLedChannel, freq, resolution);
     
     //connect to WiFi
     Serial.printf("Connecting to %s ", ssid);
     WiFi.begin(ssid, password);
 
-    pinMode(GREEN_PIN1, OUTPUT);
-    pinMode(GREEN_PIN2, OUTPUT);
-    pinMode(YELLOW_PIN1, OUTPUT);
-    pinMode(YELLOW_PIN2, OUTPUT);
+    ledcAttachPin(GREEN_PIN1, greenLedChannel);
+    ledcAttachPin(GREEN_PIN2, greenLedChannel);
+    ledcAttachPin(YELLOW_PIN1, yellowLedChannel);
+    ledcAttachPin(YELLOW_PIN2, yellowLedChannel);
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     while(WiFi.status() != WL_CONNECTED) {
         // flash the lights while waiting for a wifi connection
@@ -150,7 +156,7 @@ void setup(){
 }
 
 void loop(){
-    delay(200);
+    delay(100);
     // check if it's time to update the bedtime indicators yet
     if(!isNaptime){
         updateBedtimeIndicator();
