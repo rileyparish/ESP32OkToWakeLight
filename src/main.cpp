@@ -21,7 +21,7 @@ bool isNaptime = false;
 
 // These pins apparently can't be used at the same time as wifi: [4,0,2,15,13,12,14,27,25,26]
 const int GREEN_PIN1 = 33;
-const int GREEN_PIN2 = 19;
+const int GREEN_PIN2 = 18;
 const int YELLOW_PIN1 = 32;
 const int YELLOW_PIN2 = 5;
 const int BUTTON_PIN = 21;
